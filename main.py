@@ -2,6 +2,8 @@ import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from moviepy.editor import VideoFileClip, AudioFileClip, ImageClip, concatenate_audioclips, CompositeVideoClip
+import inquirer
+import glob
 
 def create_timestamp(seconds):
     hours = int(seconds // 3600)
@@ -66,6 +68,59 @@ def create_song_list_clip(timestamps, song_names, duration, width=1920, height=1
     
     return [txt_clip]
 
+def select_folder():
+    """Prompt user to select a music folder"""
+    # Get all directories in current path
+    current_dir = os.getcwd()
+    dirs = [d for d in os.listdir(current_dir) 
+            if os.path.isdir(os.path.join(current_dir, d))]
+    
+    if not dirs:
+        print("No directories found!")
+        return None
+        
+    questions = [
+        inquirer.List('folder',
+                     message='Select the music folder',
+                     choices=dirs)
+    ]
+    
+    answers = inquirer.prompt(questions)
+    return answers['folder'] if answers else None
+
+def select_background():
+    """Prompt user to select a background image from backgrounds folder"""
+    # Check if backgrounds folder exists
+    backgrounds_folder = "backgrounds"
+    if not os.path.exists(backgrounds_folder):
+        os.makedirs(backgrounds_folder)
+        print(f"Created '{backgrounds_folder}' directory. Please add background images there.")
+        return None
+    
+    # Get all image files in backgrounds folder
+    image_files = []
+    for ext in ['.jpg', '.jpeg', '.png', '.mp4']:
+        image_files.extend(glob.glob(os.path.join(backgrounds_folder, f"*{ext}")))
+    
+    # Convert to relative paths for display
+    image_files = [os.path.basename(f) for f in image_files]
+    
+    if not image_files:
+        print(f"No image files found in '{backgrounds_folder}' folder!")
+        return None
+        
+    questions = [
+        inquirer.List('background',
+                     message='Select the background image/video',
+                     choices=image_files)
+    ]
+    
+    answers = inquirer.prompt(questions)
+    if answers:
+        # Return full path
+        return os.path.join(backgrounds_folder, answers['background'])
+    return None
+
 def get_next_filename(base_path, extension):
     """Get next available filename by adding number suffix"""
     if not os.path.exists(f"{base_path}{extension}"):
@@ -77,10 +132,19 @@ def get_next_filename(base_path, extension):
     return f"{base_path}_{counter}{extension}"
 
 def main():
-    music_folder = "music"
-    output_folder = "output"
-    background_path = "background.jpg"
+    # Let user select music folder
+    music_folder = select_folder()
+    if not music_folder:
+        print("No music folder selected. Exiting...")
+        return
+        
+    # Let user select background
+    background_path = select_background()
+    if not background_path:
+        print("No background selected. Exiting...")
+        return
     
+    output_folder = "output"
     os.makedirs(output_folder, exist_ok=True)
     
     # Get next available filenames
